@@ -89,9 +89,12 @@ let ranking = [];
 let playerName = "";
 
 const API_URL =
-"https://api.lucas.grupo1.sd.ufersa.dev.br/score";
+"https://bp2ctge5ue.execute-api.us-east-1.amazonaws.com/prod/score";
 
 async function enviarPontuacao(nome, pontuacao) {
+
+  console.log("ENVIANDO PARA:", API_URL);
+
   try {
     const resposta = await fetch(API_URL, {
       method: "POST",
@@ -104,11 +107,13 @@ async function enviarPontuacao(nome, pontuacao) {
       })
     });
 
+    console.log("STATUS:", resposta.status);
+
     const dados = await resposta.json();
-    console.log(dados.message);
+    console.log("RESPOSTA:", dados);
 
   } catch (erro) {
-    console.error("Erro ao enviar pontuação:", erro);
+    console.error("ERRO FETCH:", erro);
   }
 }
 
