@@ -105,8 +105,7 @@ async function enviarPontuacao(nome, pontuacao) {
     });
 
     const dados = await resposta.json();
-
-    console.log("Resposta da API:", dados);
+    console.log(dados.message);
 
   } catch (erro) {
     console.error("Erro ao enviar pontuação:", erro);
