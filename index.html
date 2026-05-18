@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo da Cobrinha</title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    canvas {
+      border: 4px solid #00ff88;
+      background: #1b1b1b;
+    }
+
+    .score {
+      margin-top: 10px;
+      font-size: 22px;
+    }
+
+    .info {
+      margin-top: 8px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🐍 Jogo da Cobrinha</h1>
+
+  <canvas id="game" width="400" height="400"></canvas>
+
+  <div class="score">
+    Pontos: <span id="score">0</span>
+  </div>
+
+  <div class="info">
+  Use as setas do teclado para jogar
+</div>
+
+<h2>🏆 Ranking</h2>
+<h2 id="gameOverText"></h2>
+
+<ol id="ranking"></ol>
+
+<script>
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  const scoreText = document.getElementById("score");
+  const rankingList = document.getElementById("ranking");
+
+  const grid = 20;
+  const tileCount = canvas.width / grid;
+
+  let snake = [
+    { x: 10, y: 10 }
+  ];
+
+  let food = {
+    x: 5,
+    y: 5
+  };
+
+  let dx = 0;
+  let dy = 0;
+
+  let score = 0;
+
+
+let ranking = [];
+
+
+let playerName = "";
+
+const API_URL =
+  "https://bp2ctge5ue.execute-api.us-east-1.amazonaws.com/prod/score";
+
+async function enviarPontuacao(nome, pontuacao) {
+
+  try {
+
+    const resposta = await fetch(API_URL, {
+
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        username: nome,
+        score: pontuacao
+      })
+
+    });
+
+    const dados = await resposta.text();
+
+    console.log("Pontuação enviada:", dados);
+
+  } catch (erro) {
+
+    console.error("Erro ao enviar pontuação:", erro);
+
+  }
+}
+
+  function updateRanking() {
+    playerName = "";
+    rankingList.innerHTML = "";
+
+    ranking
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .forEach(player => {
+
+        const li = document.createElement("li");
+
+        li.textContent = `${player.name} - ${player.score} pontos`;
+
+        rankingList.appendChild(li);
+      });
+  }
+
+  function gameLoop() {
+    update();
+    draw();
+  }
+
+  function update() {
+
+    // jogo parado até apertar uma tecla
+    if (dx === 0 && dy === 0) {
+      return;
+    }
+
+    const head = {
+      x: snake[0].x + dx,
+      y: snake[0].y + dy
+    };
+
+    // atravessar paredes
+    if (head.x < 0) head.x = tileCount - 1;
+    if (head.x >= tileCount) head.x = 0;
+    if (head.y < 0) head.y = tileCount - 1;
+    if (head.y >= tileCount) head.y = 0;
+
+    // adiciona nova cabeça
+    snake.unshift(head);
+
+    // colisão com o corpo
+    for (let i = 1; i < snake.length; i++) {
+
+      if (
+        snake[i].x === head.x &&
+        snake[i].y === head.y
+      ) {
+
+        gameOverText.textContent =
+          `Game Over! ${playerName} fez ${score} pontos`;
+
+        
+        ranking.push({
+  name: playerName,
+  score: score
+});
+
+updateRanking();
+
+// enviar pontuação para API
+enviarPontuacao(playerName, score);
+
+        // resetar jogo
+        snake = [{ x: 10, y: 10 }];
+
+        dx = 0;
+        dy = 0;
+
+        score = 0;
+        scoreText.textContent = score;
+
+        return;
+      }
+    }
+
+    // comer comida
+    if (head.x === food.x && head.y === food.y) {
+
+      score++;
+      scoreText.textContent = score;
+
+      food = {
+        x: Math.floor(Math.random() * tileCount),
+        y: Math.floor(Math.random() * tileCount)
+      };
+
+    } else {
+
+      snake.pop();
+    }
+  }
+
+  function draw() {
+
+    // fundo
+    ctx.fillStyle = "#1b1b1b";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // comida
+    ctx.fillStyle = "#ff4444";
+
+    ctx.fillRect(
+      food.x * grid,
+      food.y * grid,
+      grid - 2,
+      grid - 2
+    );
+
+    // cobra
+    ctx.fillStyle = "#00ff88";
+
+    for (let part of snake) {
+
+      ctx.fillRect(
+        part.x * grid,
+        part.y * grid,
+        grid - 2,
+        grid - 2
+      );
+    }
+  }
+
+  document.addEventListener("keydown", (e) => {
+
+  // pedir nome quando iniciar uma nova partida
+  if (dx === 0 && dy === 0 && playerName === "") {
+
+    playerName = prompt("Digite o nome do jogador:");
+
+    if (!playerName || playerName.trim() === "") {
+      playerName = "Jogador";
+    }
+  }
+
+  switch (e.key) {
+
+    case "ArrowUp":
+      if (dy === 1) return;
+      dx = 0;
+      dy = -1;
+      break;
+
+    case "ArrowDown":
+      if (dy === -1) return;
+      dx = 0;
+      dy = 1;
+      break;
+
+    case "ArrowLeft":
+      if (dx === 1) return;
+      dx = -1;
+      dy = 0;
+      break;
+
+    case "ArrowRight":
+      if (dx === -1) return;
+      dx = 1;
+      dy = 0;
+      break;
+  }
+  });
+
+  setInterval(gameLoop, 100);
+
+</script>
+
+</body>
+</html>
